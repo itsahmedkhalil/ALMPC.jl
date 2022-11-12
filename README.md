@@ -1,3 +1,5 @@
+[![CI](https://github.com/itsahmedkhalil/ALMPC.jl/actions/workflows/CI.yml/badge.svg?branch=codecov)](https://github.com/itsahmedkhalil/ALMPC.jl/actions/workflows/CI.yml)
+[![codecov](https://codecov.io/gh/itsahmedkhalil/ALMPC.jl/branch/main/graph/badge.svg?token=QVT2BL4QDR)](https://codecov.io/gh/itsahmedkhalil/ALMPC.jl)
 # ALMPC.jl
 
 ## Project Overview
