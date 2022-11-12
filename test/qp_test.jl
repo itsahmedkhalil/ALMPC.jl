@@ -31,6 +31,16 @@ using Random
 
     # Solve
     solver = ALMPC.ALQP(P,q,A,b,C,d,a, 10.0, 10.0)
+
+    @test size(solver.P) == (2,2)
+    @test issymmetric(solver.P)
+    @test length(solver.q) == 2
+    @test size(solver.A) == (0,2)
+    @test size(solver.C) == (1,2)
+    @test length(solver.d) == 1
+    @test length(solver.a) == 1
+
+
     xstar, λstar, μstar = ALMPC.solve(solver, x, λ, μ)
     
     # Check optimality conditions
