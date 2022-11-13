@@ -9,5 +9,6 @@ greet() = print("Hello World!")
 
 include("foo.jl")
 include("qpALSolver.jl")
+include("MPC_OSQP.jl")
 
 end # module
