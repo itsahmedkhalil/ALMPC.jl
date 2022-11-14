@@ -9,6 +9,6 @@ greet() = print("Hello World!")
 
 include("foo.jl")
 include("qpALSolver.jl")
-include("simulate.jl")
+#include("simulate.jl")
 
 end # module
