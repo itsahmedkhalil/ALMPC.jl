@@ -73,4 +73,5 @@ using Random
     res = OSQP.solve!(model)
     @test norm(res.x - xstar) < 1e-3           
     @test norm(res.y - [λstar; μstar]) < 1e-3  
+    #@show "Testing done"
 end
