@@ -199,7 +199,7 @@ function solve(opt::ALQP, x, λ, μ;
     eps_cons=1e-6,
     eps_grad=1e-6)
     for _ = 1:max_iters
-        x = inner_solve(opt, x, λ, μ, ϵ=eps_inner, max_iters=max_iters)
+        x = inner_solve(opt, x, λ, μ, ϵ=eps_grad, max_iters=max_iters)
         λ, μ = dual_update(opt, x, λ, μ)
         opt.ρ *= opt.ϕ
         if norm(dual_residual(opt, x)) < eps_cons && norm(primal_residual(opt, x, λ, μ)) < eps_grad
