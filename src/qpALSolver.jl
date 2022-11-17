@@ -11,23 +11,6 @@ using SparseArrays
 """
 
 """
-    QPStruct
-
-Structure for holding a generic QP
-    min 0.5x'Px + q'x
-    s.t.    Ax = b, 
-            Cx < d
-"""
-struct QPStruct         
-    P::Matrix{Float64}
-    q::Vector{Float64}
-    A::Matrix{Float64}
-    b::Vector{Float64}
-    C::Matrix{Float64}
-    d::Vector{Float64}
-end
-
-"""
     ALQP
 
 Structure for holding the QP when solving
@@ -132,6 +115,7 @@ function grad(opt::ALQP{n,m,p}, x, λ, μ) where {n,m,p}
         Iρ = ρ * Diagonal(SVector(opt.a))
         grad += C'μ + C' * (Iρ * h)
     end
+    return grad
 end
 
 """

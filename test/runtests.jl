@@ -9,3 +9,4 @@ using OSQP
 # Test scripts
 include("foo_test.jl")
 include("qp_test.jl")
+include("MPC_OSQP_test.jl")
