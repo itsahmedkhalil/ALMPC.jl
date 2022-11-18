@@ -4,7 +4,7 @@ using LinearAlgebra
 using OSQP
 
 # Create a linear trajectory from x0 to xN
-function nominal_trajectory(x0,N,dt)
+function linear_trajectory(x0,N,dt)
     Xref = [zero(x0) for _ = 1:N]
     # Design a trajectory that linearly interpolates from x0 to the origin
     for k = 1:N
