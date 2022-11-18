@@ -125,83 +125,83 @@ function get_control(ctrl::MPCController{OSQP.Model}, x, time)
 end
 
 
-function buildQP_unconstrained!(ctrl::MPCController, A,B,Q,R,Qf; kwargs...)
-    # TODO: Implement this method to build the QP matrices
-    Nu = ctrl.Nu # Number of Inputs
-    Nx = ctrl.Nx # Number of States
-    Nh = ctrl.Nmpc - 1 # Time horizon 
-    Nd = length(ctrl.lb) # Number of constraints
-    n = Nx
-    Q = ctrl.Q
-    R = ctrl.R
-    Qf = ctrl.Qf
-    H = sparse([kron(Diagonal(I,Nh-1),[R zeros(Nu,Nx); zeros(Nx,Nu) Q]) zeros((Nx+Nu)*(Nh-1), Nx+Nu); zeros(Nx+Nu,(Nx+Nu)*(Nh-1)) [R zeros(Nu,Nx); zeros(Nx,Nu) Qf]])
-    C = sparse([[B -I zeros(Nx,(Nh-1)*(Nu+Nx))]; zeros(Nx*(Nh-1),Nu) [kron(Diagonal(I,Nh-1), [A B]) zeros((Nh-1)*Nx,Nx)] + [zeros((Nh-1)*Nx,Nx) kron(Diagonal(I,Nh-1),[zeros(Nx,Nu) Diagonal(-I,Nx)])]])
+# function buildQP_unconstrained!(ctrl::MPCController, A,B,Q,R,Qf; kwargs...)
+#     # TODO: Implement this method to build the QP matrices
+#     Nu = ctrl.Nu # Number of Inputs
+#     Nx = ctrl.Nx # Number of States
+#     Nh = ctrl.Nmpc - 1 # Time horizon 
+#     Nd = length(ctrl.lb) # Number of constraints
+#     n = Nx
+#     Q = ctrl.Q
+#     R = ctrl.R
+#     Qf = ctrl.Qf
+#     H = sparse([kron(Diagonal(I,Nh-1),[R zeros(Nu,Nx); zeros(Nx,Nu) Q]) zeros((Nx+Nu)*(Nh-1), Nx+Nu); zeros(Nx+Nu,(Nx+Nu)*(Nh-1)) [R zeros(Nu,Nx); zeros(Nx,Nu) Qf]])
+#     C = sparse([[B -I zeros(Nx,(Nh-1)*(Nu+Nx))]; zeros(Nx*(Nh-1),Nu) [kron(Diagonal(I,Nh-1), [A B]) zeros((Nh-1)*Nx,Nx)] + [zeros((Nh-1)*Nx,Nx) kron(Diagonal(I,Nh-1),[zeros(Nx,Nu) Diagonal(-I,Nx)])]])
     
-    lb = [zeros(Nx*Nh)]
-    ub = [zeros(Nx*Nh)] 
+#     lb = [zeros(Nx*Nh)]
+#     ub = [zeros(Nx*Nh)] 
 
-    if Nd == Nh*n
-        ub = zero(ctrl.ub)
-        lb = zero(ctrl.lb)
-    end
+#     if Nd == Nh*n
+#         ub = zero(ctrl.ub)
+#         lb = zero(ctrl.lb)
+#     end
 
-    ctrl.P .= H
-    ctrl.A .= C
-    ctrl.ub .= ub
-    ctrl.lb .= lb 
+#     ctrl.P .= H
+#     ctrl.A .= C
+#     ctrl.ub .= ub
+#     ctrl.lb .= lb 
 
-    # Initialize the included solver
-    #    If you want to use your QP solver, you should write your own
-    #    method for this function
-    initialize_solver!(ctrl; kwargs...)
-    return nothing
-end
-
-
-function updateQP_unconstrained!(ctrl::MPCController, x, time)
-    t = get_k(ctrl, time) # Get the time index corresponding to time 'time'
-
-    Nu = ctrl.Nu # Number of Inputs
-    Nx = ctrl.Nx # Number of States
-    Nh = ctrl.Nmpc - 1 # Time horizon 
-    Nd = length(ctrl.lb) # Number of constraints
-    Q = ctrl.Q
-    R = ctrl.R
-    Qf = ctrl.Qf
-    A = ctrl.Ad
-    B = ctrl.Bd
+#     # Initialize the included solver
+#     #    If you want to use your QP solver, you should write your own
+#     #    method for this function
+#     initialize_solver!(ctrl; kwargs...)
+#     return nothing
+# end
 
 
-    #Update QP 
-    b = ctrl.q
-    lb = ctrl.lb # Lower bound 
-    ub = ctrl.ub # Upper bound
-    xref = ctrl.Xref # Reference trajectory
-    xf = xref[end] # Final state
-    N = length(ctrl.Xref) # Total time duration 
+# function updateQP_unconstrained!(ctrl::MPCController, x, time)
+#     t = get_k(ctrl, time) # Get the time index corresponding to time 'time'
 
-    for t_h = 1:(Nh-1) # Take timesteps
-        if (t+t_h) <= N # If not at the final timestep
-            b[(Nu+(t_h-1)*(Nx+Nu)).+(1:Nx)] .= -Q*(xref[t+t_h] - xf)
-        else
-            b[(Nu+(t_h-1)*(Nx+Nu)).+(1:Nx)] .= -Q*(xref[end] - xf)
-        end
-    end
+#     Nu = ctrl.Nu # Number of Inputs
+#     Nx = ctrl.Nx # Number of States
+#     Nh = ctrl.Nmpc - 1 # Time horizon 
+#     Nd = length(ctrl.lb) # Number of constraints
+#     Q = ctrl.Q
+#     R = ctrl.R
+#     Qf = ctrl.Qf
+#     A = ctrl.Ad
+#     B = ctrl.Bd
 
-    if (t+Nh) <= N
-        b[(Nu+(Nh-1)*(Nx+Nu)).+(1:Nx)] .= -Qf*(xref[t+Nh] - xf)
-    else
-        b[(Nu+(Nh-1)*(Nx+Nu)).+(1:Nx)] .= -Qf*(xref[end] - xf)
-    end
+
+#     #Update QP 
+#     b = ctrl.q
+#     lb = ctrl.lb # Lower bound 
+#     ub = ctrl.ub # Upper bound
+#     xref = ctrl.Xref # Reference trajectory
+#     xf = xref[end] # Final state
+#     N = length(ctrl.Xref) # Total time duration 
+
+#     for t_h = 1:(Nh-1) # Take timesteps
+#         if (t+t_h) <= N # If not at the final timestep
+#             b[(Nu+(t_h-1)*(Nx+Nu)).+(1:Nx)] .= -Q*(xref[t+t_h] - xf)
+#         else
+#             b[(Nu+(t_h-1)*(Nx+Nu)).+(1:Nx)] .= -Q*(xref[end] - xf)
+#         end
+#     end
+
+#     if (t+Nh) <= N
+#         b[(Nu+(Nh-1)*(Nx+Nu)).+(1:Nx)] .= -Qf*(xref[t+Nh] - xf)
+#     else
+#         b[(Nu+(Nh-1)*(Nx+Nu)).+(1:Nx)] .= -Qf*(xref[end] - xf)
+#     end
     
-    # Update the initial condition
-    lb[1:Nx] .= -A*(x - xf)
-    ub[1:Nx] .= -A*(x - xf)
+#     # Update the initial condition
+#     lb[1:Nx] .= -A*(x - xf)
+#     ub[1:Nx] .= -A*(x - xf)
 
-    #@show Nx, Nh, length(lb)
-    return nothing
-end
+#     #@show Nx, Nh, length(lb)
+#     return nothing
+# end
 
 """
     buildQP!(ctrl, A,B,Q,R,Qf; kwargs...)

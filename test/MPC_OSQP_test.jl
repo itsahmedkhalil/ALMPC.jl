@@ -48,25 +48,17 @@ using Test
 
      Nx, Nu = size(B)
 
-     # #State Constraints
-     # xmin = [-100.0 -100.0]  
-     # xmax = [100.0 100.0]    
-
-     # #Control Constraints
-     # umin = [-0.5; -0.5]   
-     # umax = [0.5; 0.5]    
-
-     # # Constraints input variation with respect to previous sample
-     # Dumin = [-2e-1] 
-     # Dumax = [2e-1]
-
      # MPC objective function weights
      Q = Array(10.0*I(Nx));
      R = Array(.01*I(Nu));
      Qf = Array(10.0*I(Nx));
 
      Nmpc = 25           # MPC Horizon
-     mpc1 = ALMPC.OSQPController(Nmpc, Q, R, Qf,A, B, length(Xref))
+     Nh = Nmpc -1
+
+     Nd = (Nmpc-1)*(Nx+2)
+     
+     mpc1 = ALMPC.OSQPController(Nmpc, Q, R, Qf, A, B, length(Xref), Nd)
 
      # Provide the reference trajectory
      mpc1.Xref .= Xref
@@ -74,10 +66,21 @@ using Test
      mpc1.times .= tref
 
      # Build the sparse QP matrices
-     ALMPC.buildQP!(mpc1, A,B,Q,R,Qf, tol=1e-6)
+     # ALMPC.buildQP!(mpc1, A,B,Q,R,Qf, tol=1e-6)
+
+     #Control Constraints
+     umin = [-10; -10]   
+     umax = [10; 10]   
+
+     lb = [zeros(Nx*Nh); kron(ones(Nh), umin)]
+     ub = [zeros(Nx*Nh); kron(ones(Nh), umax)] 
+
+
+     ALMPC.buildQP!(mpc1, A, B, Q, R, Qf, lb, ub, tol=1e-6)
+
 
      Xmpc1,Umpc1,tmpc1 = ALMPC.simulate(pointmass_dynamics, x0, mpc1, tf=Nmpc)
 
-     @test norm(Xmpc1[end]) < 1e-6  
+     @test norm(Xmpc1[end]) < 1e-3  
 
 end
