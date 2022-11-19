@@ -8,10 +8,9 @@ using Random
 using Test
 
 
-
 @testset "MPC OSQP Test" begin 
      # Planar Point Mass Dynamics
-     function pointmass_dynamics(x,u; mass = 1, damp = 0.1)
+     function pointmass_dynamics(x,u; mass = 1.0, damp = 0.1)
           xdot = zero(x) 
           xdot[1] = x[3]
           xdot[2] = x[4]
@@ -20,45 +19,52 @@ using Test
           return xdot
      end
 
-     # Setting up the problem
-     dt = 0.05                # Time step [s]
-     Tfinal = 10           # Final time [s]
-     Nt = Int(Tfinal/dt)+1    # Number of time steps
-
-     x0 = [3.0, 7.0, -3.0, -1.0]
-     # xfinal = [10.0, 10.0, 0.0, 0.0]
-     ueq = zeros(2)
-
-     # Generate reference trajectory
-     Xref = ALMPC.linear_trajectory(x0,Nt,dt)     # Reference trajectory for all states
-     Uref = [copy(ueq) for k = 1:Nt]             # Reference inputs 
-     tref = range(0,Tfinal, length=Nt)           # Array of timesteps
-
      mass = 1.0    # Mass [kg]
      damp = 0.1  # Damping coefficient [N-s/m]
 
-     # Discretized MPC Model dynamics: x_k+1 = Ad*x_k + Bb*u_k
-     A = [1.0    0.0     dt                   0.0             ;
-          0.0    1.0     0.0                 dt               ;
-          0.0    0.0     1-(damp/mass)*dt     0.0             ;
-          0.0    0.0     0.0                 1-(damp/mass)*dt]    # State Matrix
-     B = zeros(4, 2)                                             # Input Matrix
-     B[3,1] = (1/mass)*dt
-     B[4,2] = (1/mass)*dt
+     dt = 0.01
 
-     Nx, Nu = size(B)
+     Ad = sparse([  1.0    0.0     dt                  0.0             ;
+                    0.0    1.0     0.0                 dt              ;
+                    0.0    0.0     1-(damp/mass)*dt    0.0             ;
+                    0.0    0.0     0.0                 1-(damp/mass)*dt])    # State Matrix
+
+     Bd = sparse([  0.0            0.0;
+                    0.0            0.0;
+                    (1/mass)*dt    0.0;
+                    0.0            (1/mass)*dt])
+
+     Nx, Nu = size(Bd)
+
+     umin = [-1, -1]   
+     umax = [1, 1]
+
+     xmin = [-10.0; -10.0; -Inf; -Inf]  
+     xmax = [10.0; 10.0; Inf; Inf] 
 
      # MPC objective function weights
-     Q = Array(10.0*I(Nx));
-     R = Array(.01*I(Nu));
-     Qf = Array(10.0*I(Nx));
+     Q = sparse(1000.0*I(Nx))
+     R = sparse(.01*I(Nu))
+     QN = sparse(1000.0*I(Nx))
 
-     Nmpc = 25           # MPC Horizon
-     Nh = Nmpc -1
+     Nmpc = 500
 
-     Nd = (Nmpc-1)*(Nx+2)
-     
-     mpc1 = ALMPC.OSQPController(Nmpc, Q, R, Qf, A, B, length(Xref), Nd)
+     Nd = (Nmpc+1)*(Nx+length(xmin)+length(umin)) - length(umin)
+
+     Tfinal = 25           # Final time [s]
+     Nt = Int(Tfinal/dt)+1    # Number of time steps
+
+     x0 = [5.0, 5.0, 0.0, 0.0]
+     xf = [0.0, 0.0, 0.0, 0.0]
+     ueq = zeros(2)
+
+     # Generate reference trajectory
+     Xref = ALMPC.linear_trajectory(x0,xf,Nt,dt)     # Reference trajectory for all states
+     Uref = [copy(ueq) for k = 1:Nt]             # Reference inputs 
+     tref = range(0,Tfinal, length=Nt)           # Array of timesteps
+
+
+     mpc1 = ALMPC.OSQPController(Nmpc, Q, R, QN, Ad, Bd, length(Xref), Nd)
 
      # Provide the reference trajectory
      mpc1.Xref .= Xref
@@ -66,21 +72,10 @@ using Test
      mpc1.times .= tref
 
      # Build the sparse QP matrices
-     # ALMPC.buildQP!(mpc1, A,B,Q,R,Qf, tol=1e-6)
+     ALMPC.buildQP!(mpc1, x0, xmin, xmax, umin, umax, tol=1e-6)
 
-     #Control Constraints
-     umin = [-10; -10]   
-     umax = [10; 10]   
+     Xmpc1,Umpc1,tmpc1 = ALMPC.simulate(pointmass_dynamics, x0, mpc1, tf=50)
 
-     lb = [zeros(Nx*Nh); kron(ones(Nh), umin)]
-     ub = [zeros(Nx*Nh); kron(ones(Nh), umax)] 
-
-
-     ALMPC.buildQP!(mpc1, A, B, Q, R, Qf, lb, ub, tol=1e-6)
-
-
-     Xmpc1,Umpc1,tmpc1 = ALMPC.simulate(pointmass_dynamics, x0, mpc1, tf=Nmpc)
-
-     @test norm(Xmpc1[end]) < 1e-3  
+     @test norm(Xmpc1[:,end] - Xref[end]) < 1e-3  
 
 end

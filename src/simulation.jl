@@ -22,24 +22,21 @@ function rk4(f,x,u,h)
 end
 
 # Simulating the problem
-function simulate(f, x0, ctrl; tf=2.0, dt=0.1)
+function simulate(f, x0, ctrl; tf=2.0, dt=0.01)
     Nx = ctrl.Nx
     Nu = ctrl.Nu
     times = range(0, tf, step=dt)
     N = length(times)
     X = zeros(length(x0),N)
-    U = [@SVector zeros(Nu) for _ = 1:N-1]
+    U = zeros(Nu,N-1)
     X[:,1] .= x0
     
-    #Control Constraints
-    umin = [-10; -10]   
-    umax = [10; 10]
 
     tstart = time_ns()
     for k = 1:N-1
-        uk = get_control(ctrl, X[:,k], times[k]) 
-        U[k] = max.(min.(umax, uk), umin)
-        X[:,k+1] = rk4(f, X[:,k], U[k],dt)
+        U[:,k] = get_control(ctrl, X[:,k], times[k]) 
+        # U[k] = max.(min.(umax, U[k]), umin)
+        X[:,k+1] = rk4(f, X[:,k], U[:,k],dt)
     end
     tend = time_ns()
     rate = N / (tend - tstart) * 1e9

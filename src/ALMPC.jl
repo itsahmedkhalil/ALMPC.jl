@@ -9,6 +9,6 @@ include("foo.jl")
 include("qpALSolver.jl")
 include("MPC_OSQP.jl")
 include("simulation.jl")
-include("traj.jl")
+include("trajectory.jl")
 
 end # module
