@@ -22,15 +22,14 @@ function rk4(f,x,u,h)
 end
 
 # Simulating the problem
-function simulate(f, x0, ctrl; tf=2.0, dt=0.01)
+function OSQPSimulate(f, x0, ctrl; tf=2.0, dt=0.01)
     Nx = ctrl.Nx
     Nu = ctrl.Nu
     times = range(0, tf, step=dt)
     N = length(times)
-    X = zeros(length(x0),N)
+    X = zeros(Nx,N)
     U = zeros(Nu,N-1)
     X[:,1] .= x0
-    
 
     tstart = time_ns()
     for k = 1:N-1

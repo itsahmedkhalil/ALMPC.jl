@@ -3,7 +3,6 @@ using LinearAlgebra
 using SparseArrays
 using OSQP
 
-
 """
     MPCController
 
@@ -14,7 +13,7 @@ with an MPC horizon of `Nmpc`. It will track the terminal reference state if
 the horizon extends beyond the reference horizon.
 """
 struct MPCController{S}
-    P::SparseMatrixCSC{Float64,Int}
+    P::SparseMatrixCSC{Float64,Int}     
     q::Vector{Float64}
     A::SparseMatrixCSC{Float64,Int}
     lb::Vector{Float64}
@@ -44,20 +43,21 @@ Uses `Nref` to initialize a reference trajectory whose length may differ from th
 horizon length.
 """
 function OSQPController(N::Integer, Q::SparseMatrixCSC{Float64, Int64}, R::SparseMatrixCSC{Float64, Int64}, Qf::SparseMatrixCSC{Float64, Int64}, Ad::SparseMatrixCSC{Float64, Int64}, Bd::SparseMatrixCSC{Float64, Int64}, Nref::Integer=N, Nd::Integer=(N-1)*n)
-    n, m = size(Bd)
-    Np = (N)*(n+m) + n    # number of primals
-    P = spzeros(Np,Np)
-    q = zeros(Np)
-    A = spzeros(Nd,Np)
-    lb = zeros(Nd)
-    ub = zeros(Nd)
-    Xref = [zeros(n) for _ = 1:Nref]
-    Uref = [zeros(m) for _ = 1:Nref]
-    tref = zeros(Nref)
-    solver = OSQP.Model()
+    n, m = size(Bd)         # Number of states (n), number of inputs (m)
+    Np = (N)*(n+m) + n      # Number of primals
+    P = spzeros(Np,Np)      # Quadtratic cost matrix
+    q = zeros(Np)           # Linear cost vector
+    A = spzeros(Nd,Np)      # Constraint matrix
+    lb = zeros(Nd)          # Lower constraints vector
+    ub = zeros(Nd)          # Upper constraints vector
+    Xref = [zeros(n) for _ = 1:Nref]    # Reference state trajectory
+    Uref = [zeros(m) for _ = 1:Nref]    # Reference input trajectory
+    tref = zeros(Nref)                  # Reference time array
+    solver = OSQP.Model()               # Setup OSQP solver
     MPCController{OSQP.Model}(P,q, A,lb,ub, N, solver, Xref, Uref, tref, n, m, Q, R, Qf, Ad, Bd)
 end
 
+# Find the current iteration, k
 get_k(ctrl, t) = searchsortedlast(ctrl.times, t)
 
 
@@ -75,15 +75,15 @@ end
 """
     get_control(ctrl::MPCController, x, t)
 
-Gets the control from the MPC solver by solving the QP. Change!
+Gets the control from the MPC solver by solving the QP. Change for ALQP!
 """
 function get_control(ctrl::MPCController{OSQP.Model}, x, time)
-    Nu = ctrl.Nu # Number of Inputs
-    Nx = ctrl.Nx # Number of States
-    N = ctrl.Nmpc
+    Nu = ctrl.Nu    # Number of Inputs
+    Nx = ctrl.Nx    # Number of States
+    N = ctrl.Nmpc   # MPC time horizon [s]
 
     # Update the QP
-    updateQP!(ctrl, x, time)
+    updateQP!(ctrl, x, time)  
     OSQP.update!(ctrl.solver, q=ctrl.q, l=ctrl.lb, u=ctrl.ub)
 
     # Solve QP
@@ -103,22 +103,21 @@ should be constant between MPC iterations.
 Any keyword arguments will be passed to `initialize_solver!`.
 """
 function buildQP!(ctrl::MPCController,x0,xmin,xmax,umin,umax; kwargs...)    
-    Nu = ctrl.Nu # Number of Inputs
-    Nx = ctrl.Nx # Number of States
-    N = ctrl.Nmpc
-    Ad = ctrl.Ad
-    Bd = ctrl.Bd
-    R = ctrl.R
-    Q = ctrl.Q
-    Qf = ctrl.Qf
+    Nu = ctrl.Nu    # Number of Inputs
+    Nx = ctrl.Nx    # Number of States
+    N = ctrl.Nmpc   # MPC time horizon [s]
+    Ad = ctrl.Ad    # Discrete state transition matrix
+    Bd = ctrl.Bd    # Discrete input transition matrix
+    R = ctrl.R      # Input cost matrix  
+    Q = ctrl.Q      # State cost matrix
+    Qf = ctrl.Qf    # Terminal state cost matrix
 
-    xref = ctrl.Xref
-    xf = xref[end]
+    xref = ctrl.Xref    
+    xf = xref[end]  # Terminal state
 
     # Cast MPC problem to a QP: x = (x(0),x(1),...,x(N),u(0),...,u(N-1))
     # - quadratic objective
     ctrl.P .= blockdiag(kron(I(N), Q), Qf, kron(I(N), R))
-
     ctrl.q .= [kron(ones(N), -Q*xf); -Qf*xf; zeros(N*Nu)]
 
     Ax = kron(I(N+1), -I(Nx)) + kron(diagm(-1 => ones(N)), Ad)
@@ -150,12 +149,12 @@ This should update `ctrl.q`, `ctrl.lb`, and `ctrl.ub`.
 function updateQP!(ctrl::MPCController, x, time)
     t = get_k(ctrl, time)
     
-    Nt = ctrl.Nmpc               # horizon
-    Nx = length(ctrl.Xref[1])    # number of states
-    Nu = length(ctrl.Uref[1])    # number of controls
-    Q = ctrl.Q
-    Qf = ctrl.Qf
-    A = ctrl.Ad
+    Nt = ctrl.Nmpc                  # MPC time horizon
+    Nx = length(ctrl.Xref[1])       # Number of states
+    Nu = length(ctrl.Uref[1])       # Number of inputs
+    Q = ctrl.Q                      # State cost matrix
+    Qf = ctrl.Qf                    # Terminal state cost matrix
+    A = ctrl.Ad                     # Discrete state transition matrix
 
     # Update QP problem
     b = ctrl.q
@@ -165,8 +164,9 @@ function updateQP!(ctrl::MPCController, x, time)
     ub = ctrl.ub
     xref = ctrl.Xref
     xeq = xref[end]
-    # @show xeq
     N = length(ctrl.Xref)
+
+    # Apply current state and terminal state error to cost
     for t_h = 1:(Nt-1)
         if (t+t_h) <= N
             b[(Nu+(t_h-1)*(Nx+Nu)).+(1:Nx)] .= -Q*(xref[t+t_h] - xeq)

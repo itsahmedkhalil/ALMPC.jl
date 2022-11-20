@@ -7,7 +7,7 @@ using OSQP
 
 include("foo.jl")
 include("qpALSolver.jl")
-include("MPC_OSQP.jl")
+include("OSQPController.jl")
 include("simulation.jl")
 include("trajectory.jl")
 
