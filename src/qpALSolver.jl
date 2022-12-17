@@ -24,6 +24,10 @@ Structure for holding the QP when solving
 
 The Augmented Lagrangian is defined as:
     L = 0.5x'P'x + q'x + λ'(Ax - b) + μ'(Cx -d) + 0.5ρ||Ax-b||^2 + 0.5ρ||min(0, (Cx - d))||^2
+
+n: number of states
+m: number of equality constraints
+p: number of inequality constraints 
 """
 mutable struct ALQP{n,m,p,nn,mn,pn,T} 
     P::Symmetric{T,SMatrix{n,n,T,nn}}
@@ -36,7 +40,6 @@ mutable struct ALQP{n,m,p,nn,mn,pn,T}
     ρ::T                
     ϕ::T                
 end
-
 
 """
     active_set!(QP, h, μ)
@@ -162,8 +165,7 @@ function inner_solve(opt::ALQP, x, λ, μ; ϵ=1e-6, max_iters=10)
             return x
         end
         H = hess(opt)
-        dx = -H \ r
-        x += dx
+        x += -H \ r
     end
     @warn "Inner solve max iterations"
     return x
